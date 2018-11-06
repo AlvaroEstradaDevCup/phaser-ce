@@ -2616,8 +2616,8 @@ PIXI.PixiShader.prototype.initSampler2D = function (uniform)
         //  magFilter can be: gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR or gl.NEAREST
         //  wrapS/T can be: gl.CLAMP_TO_EDGE or gl.REPEAT
 
-        var magFilter = gl.LINEAR;
-        var minFilter = gl.LINEAR;
+        var magFilter = (data.magFilter) ? data.magFilter : gl.LINEAR;
+        var minFilter = (data.minFilter) ? data.minFilter : gl.LINEAR;
         var wrapS = (data.wrapS) ? data.wrapS : gl.CLAMP_TO_EDGE;
         var wrapT = (data.wrapT) ? data.wrapT : gl.CLAMP_TO_EDGE;
         var format = (data.luminance) ? gl.LUMINANCE : gl.RGBA;
