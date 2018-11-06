@@ -34,7 +34,7 @@ PIXI.WebGLGraphics.renderGraphics = function (graphics, renderSession)// project
     var gl = renderSession.gl;
     var projection = renderSession.projection,
         offset = renderSession.offset,
-        shader = renderSession.shaderManager.defaultShader, //renderSession.shaderManager.primitiveShader
+        shader = renderSession.shaderManager.primitiveShader,
         webGLData;
 
     if(graphics.dirty)
@@ -71,7 +71,7 @@ PIXI.WebGLGraphics.renderGraphics = function (graphics, renderSession)// project
 
 
             renderSession.shaderManager.setShader(shader);// activatePrimitiveShader();
-            shader = renderSession.shaderManager.defaultShader; //renderSession.shaderManager.primitiveShader 
+            shader = renderSession.shaderManager.primitiveShader;
             gl.uniformMatrix3fv(shader.translationMatrix, false, graphics.worldTransform.toArray(true));
 
             gl.uniform1f(shader.flipY, 1);
