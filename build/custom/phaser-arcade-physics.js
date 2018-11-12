@@ -5340,6 +5340,16 @@ PIXI.WebGLSpriteBatch.prototype.flush = function ()
         // bind the buffers
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+        
+        if(this.colorAttribute === -1)
+    {
+        this.colorAttribute = 2;
+    }
+
+    if(this.aTextureIndex === -1)
+    {
+        this.aTextureIndex = 3;
+    }
 
         // this is the same for each shader?
         var stride = this.vertexSize; // this.vertSize * 4;
