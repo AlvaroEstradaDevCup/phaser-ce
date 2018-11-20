@@ -7,7 +7,7 @@
 *
 * Phaser - http://phaser.io
 *
-* v2.11.1 "2018-10-02" - Built: Tue Oct 02 2018 18:19:07
+* v2.11.1 "2018-10-02" - Built: Tue Nov 20 2018 17:18:05
 *
 * By Richard Davey http://www.photonstorm.com @photonstorm
 *
@@ -19754,7 +19754,46 @@ PIXI.WebGLSpriteBatch.prototype.setContext = function (gl)
                 'varying float vTextureIndex;',
                 'uniform sampler2D uSampler;',
                 'void main(void) {',
-                '   gl_FragColor = texture2D(uSampler, vTextureCoord) * vColor;',
+
+                //Get Texture Size
+                'vec2 vTextureSize =  textureSize(uSampler, 0);',
+    
+                //Calculate half pixel
+                'vec2 HalfPixel = (1.0 / vTextureSize) * 0.5;',
+                
+                //Calculate virtual pixel
+                //Top-Left
+                'vec2 coord1 = vec2(vTextureCoord.x - HalfPixel.x, vTextureCoord.y + HalfPixel.y);',
+                //Top-Right
+                'vec2 coord2 = vec2(vTextureCoord.x + HalfPixel.x, vTextureCoord.y + HalfPixel.y);',
+                //Bottom-Left
+                'vec2 coord3 = vec2(vTextureCoord.x - HalfPixel.x, vTextureCoord.y - HalfPixel.y);',
+                //Bottom-Right
+                'vec2 coord4 = vec2(vTextureCoord.x + HalfPixel.x, vTextureCoord.y - HalfPixel.y);',
+    
+                //Get colors
+                'vec4 colorA = vec4(texture2D(uSampler, coord1));',
+                'vec4 colorB = vec4(texture2D(uSampler, coord2));',
+                'vec4 colorC = vec4(texture2D(uSampler, coord3));',
+                'vec4 colorD = vec4(texture2D(uSampler, coord4));',
+    
+                //Convert texcoord to pixel coord
+                'vec2 currentPixelcoord = vTextureCoord * vTextureSize;',
+    
+                //Get the displacemnet value in X and Y
+                'float valueX = fract(currentPixelcoord.x - 0.5);',
+                'float valueY = fract(currentPixelcoord.y - 0.5);',
+    
+                //X Interpolation
+                'vec4 colorX1 = mix(colorA, colorB, valueX);',
+                'vec4 colorX2 = mix(colorC, colorD, valueX);',
+    
+                //Y Interpolation
+                'vec4 finalColor = mix(colorX1, colorX2, valueY);',
+    
+                //Return final color
+                'gl_FragColor = finalColor * vColor;',
+    
                 '}'
             ]);
     }
@@ -22651,7 +22690,7 @@ var Phaser = Phaser || { // jshint ignore:line
     * @constant Phaser.VERSION
     * @type {string}
     */
-    VERSION: '2.11.1',
+    VERSION: '2.11.2-dev',
 
     /**
     * An array of Phaser game instances.
@@ -30286,6 +30325,40 @@ Object.defineProperty(Phaser.Camera.prototype, 'fixedView', {
         this._fixedView.setTo(0, 0, this.view.width, this.view.height);
 
         return this._fixedView;
+
+    }
+
+});
+
+/**
+ * The x position of the center of the Camera's viewport, relative to the top-left of the game canvas.
+ * @name Phaser.Camera#centerX
+ * @property {number} centerX
+ * @readonly
+ */
+Object.defineProperty(Phaser.Camera.prototype, 'centerX', {
+
+    get: function ()
+    {
+
+        return (this.x + (0.5 * this.width));
+
+    }
+
+});
+
+/**
+ * The y position of the center of the Camera's viewport, relative to the top-left of the game canvas.
+ * @name Phaser.Camera#centerY
+ * @property {number} centerY
+ * @readonly
+ */
+Object.defineProperty(Phaser.Camera.prototype, 'centerY', {
+
+    get: function ()
+    {
+
+        return (this.y + (0.5 * this.height));
 
     }
 
@@ -51463,18 +51536,21 @@ Phaser.GameObjectFactory.prototype = {
     * See the Phaser custom build process for more details.
     *
     * @method Phaser.GameObjectFactory#creature
-    * @param {number} [x=0] - The x coordinate of the creature. The coordinate is relative to any parent container this creature may be in.
-    * @param {number} [y=0] - The y coordinate of the creature. The coordinate is relative to any parent container this creature may be in.
-    * @param {string|PIXI.Texture} [key] - The image used as a texture by this creature object during rendering. If a string Phaser will get for an entry in the Image Cache. Or it can be an instance of a PIXI.Texture.
-    * @param {Phaser.Group|Phaser.Stage} [group] - Optional Group to add the object to. If not specified it will be added to the World group.
+    * @param {number} x - The x coordinate of the creature. The coordinate is relative to any parent container this creature may be in.
+    * @param {number} y - The y coordinate of the creature. The coordinate is relative to any parent container this creature may be in.
+    * @param {string|PIXI.Texture} key - The creature's image texture. If a string Phaser will get for an entry in the Image Cache. Or it can be an instance of a PIXI.Texture.
+    * @param {string} mesh - The creature's mesh data. It should be a string which is a reference to the Cache JSON entry.
+    * @param {Phaser.Group|Phaser.Stage} [group=this.world] - Optional Group to add the creature to. If omitted (or `undefined`), the creature will be added to the World group.
+    * @param {string} [animation='default'] - The animation within the mesh data to play.
+    * @param {string} [useFlatData=false] - Use flat data.
     * @returns {Phaser.Creature} The newly created Creature object.
     */
-    creature: function (x, y, key, mesh, group)
+    creature: function (x, y, key, mesh, group, animation, useFlatData)
     {
 
         if (group === undefined) { group = this.world; }
 
-        var obj = new Phaser.Creature(this.game, x, y, key, mesh);
+        var obj = new Phaser.Creature(this.game, x, y, key, mesh, animation, useFlatData);
 
         group.add(obj);
 
@@ -62738,6 +62814,12 @@ Phaser.BitmapText = function (game, x, y, font, text, size, align)
     * @private
     */
     this._align = align;
+    
+    /**
+    * @property {number} _letterSpacing - Internal cache var.
+    * @private
+    */
+    this._letterSpacing = 0;
 
     /**
     * @property {number} _tint - Internal cache var.
@@ -62898,11 +62980,11 @@ Phaser.BitmapText.prototype.scanLine = function (data, scale, text)
             }
             else
             {
-                w += (charData.xAdvance + kerning) * scale;
+                w += (charData.xAdvance + kerning + this.letterSpacing) * scale;
 
-                chars.push(x + (charData.xOffset + kerning) * scale);
+                chars.push(x + (charData.xOffset + kerning + this.letterSpacing) * scale);
 
-                x += (charData.xAdvance + kerning) * scale;
+                x += (charData.xAdvance + kerning + this.letterSpacing) * scale;
 
                 prevCharCode = charCode;
             }
@@ -63140,6 +63222,30 @@ Phaser.BitmapText.prototype.updateTransform = function ()
     PIXI.DisplayObjectContainer.prototype.updateTransform.call(this);
 
 };
+
+/**
+* @name Phaser.BitmapText#letterSpacing
+* @property {string} letterSpacing - Sets the letter spacing between each character of this Bitmap Text. Can be a positive value to increase the space, or negative to reduce it. Spacing is applied after the kerning values have been set.
+*/
+Object.defineProperty(Phaser.BitmapText.prototype, 'letterSpacing', {
+
+    get: function ()
+    {
+        return this._letterSpacing;
+    },
+
+    set: function (value)
+    {
+
+        if (typeof(value) === 'number')
+        {
+            this._letterSpacing = value;
+            this.updateText();
+        }
+
+    }
+
+});
 
 /**
 * @name Phaser.BitmapText#align
@@ -82496,7 +82602,10 @@ Phaser.LoaderParser = {
             var second = parseInt(kernings[i].getAttribute('second'), 10);
             var amount = parseInt(kernings[i].getAttribute('amount'), 10) / resolution;
 
-            data.chars[second].kerning[first] = amount;
+            if (data.chars[second])
+            {
+                data.chars[second].kerning[first] = amount;
+            }
         }
 
         return this.finalizeBitmapFont(baseTexture, data);
@@ -82587,9 +82696,10 @@ Phaser.LoaderParser = {
 
                 function parseKerning (kerning)
                 {
-
-                    data.chars[kerning._second].kerning[kerning._first] = parseInt(kerning._amount, 10) / resolution;
-
+                    if (data.chars[kerning._second])
+                    {
+                        data.chars[kerning._second].kerning[kerning._first] = parseInt(kerning._amount, 10) / resolution;
+                    }
                 }
 
             );
@@ -110380,7 +110490,7 @@ Phaser.Weapon.KILL_LIFESPAN = 1;
 
 /**
 * A {@link #bulletKillType} constant that automatically kills the bullets after they
-* exceed the {@link #bulletDistance} from their original firing position.
+* exceed the {@link #bulletKillDistance} from their original firing position.
 * @constant
 * @type {integer}
 */
@@ -111295,10 +111405,10 @@ Object.defineProperty(Phaser.Weapon.prototype, 'bulletClass', {
 * The bullets are never destroyed by the Weapon. It's up to you to destroy them via your own code.
 *
 * * `Phaser.Weapon.KILL_LIFESPAN`
-* The bullets are automatically killed when their `bulletLifespan` amount expires.
+* The bullets are automatically killed when their {@link #bulletLifespan} amount expires.
 *
 * * `Phaser.Weapon.KILL_DISTANCE`
-* The bullets are automatically killed when they exceed `bulletDistance` pixels away from their original launch position.
+* The bullets are automatically killed when they exceed {@link #bulletKillDistance} pixels away from their original launch position.
 *
 * * `Phaser.Weapon.KILL_WEAPON_BOUNDS`
 * The bullets are automatically killed when they no longer intersect with the {@link #bounds} rectangle.
