@@ -39,8 +39,47 @@ PIXI.PrimitiveShader = function (gl)
         'varying vec4 vColor;',
 
         'void main(void) {',
-        '   gl_FragColor = vColor;',
-        '}'
+
+                //Get Texture Size
+                'vec2 vTextureSize =  textureSize(uSampler, 0);',
+    
+                //Calculate half pixel
+                'vec2 HalfPixel = (1.0 / vTextureSize) * 0.5;',
+                
+                //Calculate virtual pixel
+                //Top-Left
+                'vec2 coord1 = vec2(vTextureCoord.x - HalfPixel.x, vTextureCoord.y + HalfPixel.y);',
+                //Top-Right
+                'vec2 coord2 = vec2(vTextureCoord.x + HalfPixel.x, vTextureCoord.y + HalfPixel.y);',
+                //Bottom-Left
+                'vec2 coord3 = vec2(vTextureCoord.x - HalfPixel.x, vTextureCoord.y - HalfPixel.y);',
+                //Bottom-Right
+                'vec2 coord4 = vec2(vTextureCoord.x + HalfPixel.x, vTextureCoord.y - HalfPixel.y);',
+    
+                //Get colors
+                'vec4 colorA = vec4(texture2D(uSampler, coord1));',
+                'vec4 colorB = vec4(texture2D(uSampler, coord2));',
+                'vec4 colorC = vec4(texture2D(uSampler, coord3));',
+                'vec4 colorD = vec4(texture2D(uSampler, coord4));',
+    
+                //Convert texcoord to pixel coord
+                'vec2 currentPixelcoord = vTextureCoord * vTextureSize;',
+    
+                //Get the displacemnet value in X and Y
+                'float valueX = fract(currentPixelcoord.x - 0.5);',
+                'float valueY = fract(currentPixelcoord.y - 0.5);',
+    
+                //X Interpolation
+                'vec4 colorX1 = mix(colorA, colorB, valueX);',
+                'vec4 colorX2 = mix(colorC, colorD, valueX);',
+    
+                //Y Interpolation
+                'vec4 finalColor = mix(colorX1, colorX2, valueY);',
+    
+                //Return final color
+                'gl_FragColor = finalColor;',
+    
+                '}'
     ];
 
     /**
